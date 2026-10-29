@@ -10,6 +10,7 @@ Como executar:
 2. Execute o script: python calculadora.py
 """
 
+import re
 import customtkinter as ctk
 
 # Configurações globais de aparência do CustomTkinter
@@ -100,6 +101,50 @@ class Calculadora(ctk.CTk):
         self.visor.insert(0, str(texto))
         self.visor.configure(state="readonly")
 
+    def calcular_porcentagem(self):
+        """Calcula porcentagens simples e combinadas com as 4 operações (+, -, *, /)."""
+        if not self.expressao or self.expressao[-1] in ["+", "-", "*", "/"]:
+            return
+
+        try:
+            # Verifica se há uma operação antes do último número (ex: "200+10", "200-15", "200*10")
+            match = re.match(r"^(.+)([+\-*/])(\d+(?:\.\d+)?)$", self.expressao)
+            if match:
+                base_expr, operador, ultimo_num = match.groups()
+                taxa = float(ultimo_num) / 100
+
+                if operador == "+":
+                    base = eval(base_expr)
+                    res = base + (base * taxa)
+                elif operador == "-":
+                    base = eval(base_expr)
+                    res = base - (base * taxa)
+                elif operador == "*":
+                    res = eval(f"{base_expr}*{taxa}")
+                elif operador == "/":
+                    if taxa == 0:
+                        self.atualizar_visor("Erro: Divisão por 0")
+                        self.expressao = ""
+                        return
+                    res = eval(f"{base_expr}/{taxa}")
+            else:
+                # Número isolado (ex: "50" -> 0.5)
+                res = float(eval(self.expressao)) / 100
+
+            if isinstance(res, float):
+                res = round(res, 8)
+                if res.is_integer():
+                    res = int(res)
+
+            self.expressao = str(res)
+            self.atualizar_visor(self.expressao)
+        except ZeroDivisionError:
+            self.atualizar_visor("Erro: Divisão por 0")
+            self.expressao = ""
+        except Exception:
+            self.atualizar_visor("Erro")
+            self.expressao = ""
+
     def clique_botao(self, valor):
         """Processa as 4 operações básicas e ações especiais."""
         # Limpar visor
@@ -123,16 +168,7 @@ class Calculadora(ctk.CTk):
 
         # Porcentagem
         elif valor == "%":
-            try:
-                if self.expressao:
-                    res = eval(self.expressao) / 100
-                    if res.is_integer():
-                        res = int(res)
-                    self.expressao = str(res)
-                    self.atualizar_visor(self.expressao)
-            except Exception:
-                self.atualizar_visor("Erro")
-                self.expressao = ""
+            self.calcular_porcentagem()
 
         # Calcular resultado com as 4 operações (+, -, *, /)
         elif valor == "=":
@@ -150,10 +186,10 @@ class Calculadora(ctk.CTk):
                 resultado = eval(expr_limpa)
 
                 # Formata inteiros sem casas decimais supérfluas
-                if isinstance(resultado, float) and resultado.is_integer():
-                    resultado = int(resultado)
-                elif isinstance(resultado, float):
+                if isinstance(resultado, float):
                     resultado = round(resultado, 8)
+                    if resultado.is_integer():
+                        resultado = int(resultado)
 
                 self.atualizar_visor(resultado)
                 self.expressao = str(resultado)
